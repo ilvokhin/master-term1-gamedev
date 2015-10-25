@@ -1,4 +1,5 @@
---- Simple balls physics. Based on Codingale LOVE examples.
+--- Simple balls physics. Based on Codingale LOVE examples:
+--- https://github.com/Codingale/LOVE and official LOVE documentation.
 
 debug = true
 meter = 32
