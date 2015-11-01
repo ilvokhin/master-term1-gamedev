@@ -107,7 +107,7 @@ function love.update(dt)
   world:update(dt)
 end
 
-function love.draw(dt)
+function love.draw()
   --- draw border rectangles
   local rectangles = {'up', 'right', 'down', 'left'}
   love.graphics.setColor(255, 255, 255)
