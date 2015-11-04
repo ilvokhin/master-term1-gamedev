@@ -93,6 +93,13 @@ function edgeDeviation(ball, racket)
 end
 
 function beginContact(a, b, collision)
+  if
+    (a:getUserData() == 'ball' and b:getUserData() == 'down')
+  or
+    (a:getUserData() == 'down' and b:getUserData() == 'ball')
+  then
+    lose = true
+  end
 end
 
 function endContact(a, b, collision)
@@ -117,13 +124,7 @@ end
 function postSolve(a, b, collision, ni_1, ti_1, ni_2, ti_2)
 end
 
-function love.load()
-  love.window.setTitle('Arkanoid')
-  love.graphics.setBackgroundColor(171, 235, 239)
-  ---
-  love.physics.setMeter(meter)
-  world = love.physics.newWorld(0, meter * g, true)
-  world:setCallbacks(beginContact, endContact, preSolve, postSolve)
+function reloadGame()
   edges = {}
   
   addEdge('up', 10, 10, 790, 10)
@@ -138,21 +139,54 @@ function love.load()
   addBrickRow(50)
   addBrickRow(110)
   removeBricks = {}
+
+  pause = false
+  win = false
+  lose = false
+end
+
+function destroyComplexObject(obj)
+  obj.body:destroy()
+end
+
+function cleanGame()
+  for k, v in pairs(edges) do
+    destroyComplexObject(v)
+  end
+
+  for k, v in pairs(bricks) do
+    destroyComplexObject(v)
+  end
   
+  destroyComplexObject(ball)
+  destroyComplexObject(racket)
+end
+
+function love.load()
+  love.window.setTitle('Arkanoid')
+  love.graphics.setBackgroundColor(171, 235, 239)
+  ---
+  love.physics.setMeter(meter)
+  world = love.physics.newWorld(0, meter * g, true)
+  world:setCallbacks(beginContact, endContact, preSolve, postSolve)
+
+  reloadGame()
 end
 
 function love.update(dt)
-  world:update(dt)
-  
-  if love.keyboard.isDown('right') then
-    racket.body:setLinearVelocity(racketSpeed, 0)
-  elseif love.keyboard.isDown('left') then
-    racket.body:setLinearVelocity(-racketSpeed, 0)
-  else
-    racket.body:setLinearVelocity(0, 0)
-  end
+  if not (pause or win or lose) then
+    world:update(dt)
 
-  racket.body:setY(0)
+    if love.keyboard.isDown('right') then
+      racket.body:setLinearVelocity(racketSpeed, 0)
+    elseif love.keyboard.isDown('left') then
+      racket.body:setLinearVelocity(-racketSpeed, 0)
+    else
+      racket.body:setLinearVelocity(0, 0)
+    end
+
+    racket.body:setY(0)
+  end
 
 end
 
@@ -177,10 +211,38 @@ function love.draw()
    love.graphics.setColor(0, 0, 0)
   love.graphics.polygon('line', racketBody:getWorldPoints(racketShape:getPoints()))
   ---
+  bricksCounter = 0
   love.graphics.setColor(0, 0, 0)
   for k, v in pairs(bricks) do
     if not v.fixture:isDestroyed() then
       love.graphics.polygon('line', v.body:getWorldPoints(v.shape:getPoints()))
+      bricksCounter = bricksCounter + 1
     end
+  end
+
+  if bricksCounter == 0 then
+    win = true
+  end
+
+  if pause then
+    love.graphics.setNewFont(30)
+    love.graphics.print('Game is paused', 270, 300)
+  elseif win then
+    love.graphics.setNewFont(30)
+    love.graphics.print('You win!', 335, 300)
+  elseif lose then
+    love.graphics.setNewFont(30)
+    love.graphics.print('You lose :(', 335, 300)
+  end
+end
+
+function love.keypressed(key)
+  if key == 'escape' then
+    pause = not pause
+  end
+
+  if key == 'r' then
+    cleanGame()
+    reloadGame()
   end
 end
