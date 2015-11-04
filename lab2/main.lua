@@ -3,11 +3,14 @@ meter = 24
 g = 9.81
 edgeRestitution = 0.5
 ballRestitution = 1.
-racketRestitution = 2.7
+racketRestitution = 2.5
 racketSpeed = 800
 radius = 16
 bricksCount = 16
 brickRestitution = 0.5
+---
+magicDeviationPower = 5
+magicReboundPower = 750
 
 function addEdge(key, startX, startY, endX, endY)
   local body = love.physics.newBody(world, 0, 0, 'static')
@@ -78,6 +81,17 @@ function addBrickRow(yPosBrick)
   end
 end
 
+function edgeDeviation(ball, racket)
+  local ballBody = ball:getBody()
+  local racketBody = racket:getBody()
+  local racketShape = racket:getShape()
+  local dx, dy = ballBody:getLinearVelocity()
+  local x_begin, _, x_end, _ = racketBody:getWorldPoints(racketShape:getPoints())
+  local racketCenter = (x_begin + x_end) / 2.
+  local dir = math.atan2(dy, dx + magicDeviationPower * (ballBody:getX() - racketCenter))
+  ballBody:setLinearVelocity(magicReboundPower * math.cos(dir), magicReboundPower * math.sin(dir))
+end
+
 function beginContact(a, b, collision)
 end
 
@@ -87,6 +101,13 @@ function endContact(a, b, collision)
   end
   if (a:getUserData() == 'ball' and b:getUserData() == 'brick') then
     b:destroy()
+  end
+
+  if (a:getUserData() == 'racket' and b:getUserData() == 'ball') then
+    edgeDeviation(b, a)
+  end
+  if (a:getUserData() == 'ball' and b:getUserData() == 'racket') then
+    edgeDeviation(a, b)
   end
 end
 
@@ -111,7 +132,7 @@ function love.load()
   addEdge('left', 10, 10, 10, 590)
 
   ball = makeBall(400, 200)
-  racket = makeRacket(400, 560)
+  racket = makeRacket(400, 565)
 
   bricks = {}
   addBrickRow(50)
