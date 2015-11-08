@@ -12,7 +12,7 @@ def mouse2world():
   ray_p1 = mouse_over.rayTarget
 
   intersection = geometry.intersect_line_plane(ray_p0, ray_p1, Vector((0, 0, 0)), Vector((0, 0, 1)))
-  # As alnernative we can use intersect_line_plane.
+  # As alnernative we can use intersect_line_sphere.
   # ref: https://www.blender.org/api/blender_python_api_2_63_17/mathutils.geometry.html
   return intersection
 
