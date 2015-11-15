@@ -30,13 +30,9 @@ class Balls(ShowBase):
     self.accept('escape', sys.exit)
     # disable standart mouse based camera control
     self.disableMouse()
-    #self.useDrive()
-    #self.oobe()
     # set camera position
-    #
-    #self.camera.setPos(15, 0, 10)
-    #self.camera.lookAt(0, 0, 0)
-    self.camera.setPosHpr(0, -12, 12, 0, -35, 0)
+    self.camera.setPos(0, -10, 15)
+    self.camera.lookAt(0, 0, 0)
     #
     self.world = BulletWorld()
     self.world.setGravity(Vec3(0, 0, -9.81))
