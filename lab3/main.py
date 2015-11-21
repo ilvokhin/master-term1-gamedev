@@ -9,6 +9,8 @@ from panda3d.core import LVector3
 from panda3d.core import NodePath
 from panda3d.core import Vec3
 from panda3d.core import Point3
+from panda3d.core import TransparencyAttrib
+from panda3d.core import PandaNode
 from panda3d.bullet import BulletWorld
 from panda3d.bullet import BulletPlaneShape
 from panda3d.bullet import BulletSphereShape
@@ -17,11 +19,14 @@ from panda3d.bullet import BulletDebugNode
 from math import atan2
 from math import cos
 from math import sin
+from functools import partial
+
 import sys
 
 HIGHLIGHT = (0, 1, 1, 1)
 STANDART = (1, 1, 1, 1)
 SPEED = 5
+ROTATE_SPEED = 10
 
 class Balls(ShowBase):
   def __init__(self):
@@ -30,17 +35,45 @@ class Balls(ShowBase):
     self.accept('escape', sys.exit)
     # disable standart mouse based camera control
     self.disableMouse()
+    #base.useDrive()
+    #base.useTrackball()
     # set camera position
-    self.camera.setPos(0, -10, 15)
+    self.camera.setPos(0, -30, 25)
     self.camera.lookAt(0, 0, 0)
     #
     self.world = BulletWorld()
     self.world.setGravity(Vec3(0, 0, -9.81))
+    # debug
+    debugNode = BulletDebugNode('Debug')
+    debugNode.showWireframe(True)
+    debugNode.showConstraints(True)
+    debugNode.showBoundingBoxes(False)
+    debugNode.showNormals(False)
+    debugNP = render.attachNewNode(debugNode)
+    #debugNP.show()
+    #self.world.setDebugNode(debugNP.node())
+
     self.taskMgr.add(self.updateWorld, 'updateWorld')
     self.setupLight()
-    self.makePlane()
+    # down
+    self.makePlane(0, Vec3(0, 0, 1), (0, 0, 0), (0, 0, 0))
+    # up
+    self.makePlane(1, Vec3(0, 0, -1), (0, 0, 10), (0, 0, 0))
+    # left
+    self.makePlane(2, Vec3(1, 0, 0), (-5, 0, 5), (0, 0, 90))
+    # right
+    self.makePlane(3, Vec3(-1, 0, 0), (5, 0, 5), (0, 0, -90))
+    # top
+    self.makePlane(4, Vec3(0, 1, 0), (0, -5, 5), (0, 90, 0))
+    # buttom
+    self.makePlane(5, Vec3(0, -1, 0), (0, 5, 5), (0, -90, 0))
+
     self.accept('mouse1', self.pickBall)
     self.accept('mouse3', self.releaseBall)
+    self.accept('arrow_up', partial(self.rotateCube, hpr = (0, ROTATE_SPEED, 0)))
+    self.accept('arrow_down', partial(self.rotateCube, hpr = (0, -ROTATE_SPEED, 0)))
+    self.accept('arrow_left', partial(self.rotateCube, hpr = (0, 0, -ROTATE_SPEED)))
+    self.accept('arrow_right', partial(self.rotateCube, hpr = (0, 0, ROTATE_SPEED)))
 
     cnt = 3
     for num in xrange(cnt):
@@ -70,18 +103,23 @@ class Balls(ShowBase):
       self.camLens.extrude(mouse, pointFrom, pointTo)
       pointFrom = render.getRelativePoint(self.cam, pointFrom)
       pointTo = render.getRelativePoint(self.cam, pointTo)
-      return self.world.rayTestClosest(pointFrom, pointTo)
-    return None
+      hits = self.world.rayTestAll(pointFrom, pointTo).getHits()
+      return sorted(hits, key = lambda x: (x.getHitPos() - pointFrom).length())
+    return []
 
   def pickBall(self):
-      picked = self.rayCollision()
-      if picked and 'ball' in picked.getNode().getName():
-        self.picked.add(picked.getNode().getName())
-        NodePath(picked.getNode().getChild(0).getChild(0)).setColor(HIGHLIGHT)
+      hits = self.rayCollision()
+      for hit in hits:
+        hit_node = hit.getNode()
+        if 'ball' in hit_node.getName():
+          self.picked.add(hit_node.getName())
+          NodePath(hit_node.getChild(0).getChild(0)).setColor(HIGHLIGHT)
 
   def releaseBall(self):
-    picked = self.rayCollision()
-    if picked:
+    hits = self.rayCollision()
+    if hits:
+      # TODO: fix this part (sort on z pos?)
+      picked = hits[1]
       x, y, z = picked.getHitPos()
       bodies = self.world.getRigidBodies()
       for elem in bodies:
@@ -98,15 +136,37 @@ class Balls(ShowBase):
           node.setColor(STANDART)
       self.picked = set([])
 
-  def makePlane(self):
-    shape = BulletPlaneShape(Vec3(0, 0, 1), 0)
-    node = BulletRigidBodyNode('plane')
+  def rotateCube(self, hpr = (0, 0, 0)):
+    # h, p, r = z, x, y
+    pivot = render.attachNewNode('pivot')
+    pivot.setPos(0, 0, 5)
+    print hpr
+    planes = render.findAllMatches('**/plane*')
+    #planes = render.findAllMatches('**/plane_0')
+    for plane in planes:
+      pivot = render.attachNewNode('pivot')
+      pivot.setPos(0, 0, 5)
+      plane.wrtReparentTo(pivot)
+      cur_hpr = pivot.getHpr()
+      #cur_hpr = plane.getHpr(pivot)
+      print 'hpr', plane.getName(), cur_hpr, plane.getHpr(pivot)
+      #plane.setHpr(pivot, cur_hpr + Vec3(hpr))
+      pivot.setHpr(cur_hpr + Vec3(hpr))
+      #plane.wrtReparentTo(render)
+      print plane.getName(), plane.getPos()
+
+  def makePlane(self, num, norm, pos, hpr):
+    shape = BulletPlaneShape(norm, 0)
+    node = BulletRigidBodyNode('plane_' + str(num))
     node.addShape(shape)
     physics = render.attachNewNode(node)
-    physics.setPos(0, 0, 0)
+    physics.setPos(*pos)
     self.world.attachRigidBody(node)
     model = loader.loadModel('models/square')
     model.setScale(10, 10, 10)
+    model.setHpr(*hpr)
+    model.setTransparency(TransparencyAttrib.MAlpha)
+    model.setColor(1, 1, 1, 0.25)
     model.reparentTo(physics)
 
   def makeBall(self, num, pos = (0, 0, 0)):
