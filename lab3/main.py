@@ -20,13 +20,14 @@ from math import atan2
 from math import cos
 from math import sin
 from functools import partial
-
+from random import uniform
 import sys
 
 HIGHLIGHT = (0, 1, 1, 1)
 STANDART = (1, 1, 1, 1)
 SPEED = 5
 ROTATE_SPEED = 10
+SHAKE_SPEED = 15
 
 class Balls(ShowBase):
   def __init__(self):
@@ -74,6 +75,7 @@ class Balls(ShowBase):
     self.accept('arrow_down', partial(self.rotateCube, hpr = (0, -ROTATE_SPEED, 0)))
     self.accept('arrow_left', partial(self.rotateCube, hpr = (0, 0, -ROTATE_SPEED)))
     self.accept('arrow_right', partial(self.rotateCube, hpr = (0, 0, ROTATE_SPEED)))
+    self.accept('space', self.shakeBalls)
 
     cnt = 3
     for num in xrange(cnt):
@@ -118,42 +120,46 @@ class Balls(ShowBase):
   def releaseBall(self):
     hits = self.rayCollision()
     if hits:
-      # TODO: fix this part (sort on z pos?)
-      picked = hits[1]
-      x, y, z = picked.getHitPos()
-      bodies = self.world.getRigidBodies()
-      for elem in bodies:
-        name = elem.getName()
-        if name in self.picked:
-          # apply some physics
-          node = NodePath(elem.getChild(0).getChild(0))
-          node_x, node_y, node_z = node.getPos(render)
-          ix = (x - node_x)
-          iy = (y - node_y)
-          dir = atan2(iy, ix)
-          dx, dy = SPEED * cos(dir), SPEED * sin(dir)
-          elem.applyCentralImpulse(LVector3(dx, dy, z))
-          node.setColor(STANDART)
+      for picked in hits:
+        hit_node = picked.getNode()
+        if 'ball' in hit_node.getName():
+          x, y, z = picked.getHitPos()
+          bodies = self.world.getRigidBodies()
+          for elem in bodies:
+            name = elem.getName()
+            if name in self.picked:
+              # apply some physics
+              node = NodePath(elem.getChild(0).getChild(0))
+              node_x, node_y, node_z = node.getPos(render)
+              ix = (x - node_x)
+              iy = (y - node_y)
+              dir = atan2(iy, ix)
+              dx, dy = SPEED * cos(dir), SPEED * sin(dir)
+              elem.applyCentralImpulse(LVector3(dx, dy, z))
+              node.setColor(STANDART)
       self.picked = set([])
 
   def rotateCube(self, hpr = (0, 0, 0)):
     # h, p, r = z, x, y
-    pivot = render.attachNewNode('pivot')
-    pivot.setPos(0, 0, 5)
-    print hpr
+    # FIXME: something completely wrong goes here
+    # need some time to figure it out
     planes = render.findAllMatches('**/plane*')
-    #planes = render.findAllMatches('**/plane_0')
     for plane in planes:
+      oldParent = plane.getParent()
       pivot = render.attachNewNode('pivot')
-      pivot.setPos(0, 0, 5)
+      pivot.setPos(render, 0, 0, 5)
       plane.wrtReparentTo(pivot)
-      cur_hpr = pivot.getHpr()
-      #cur_hpr = plane.getHpr(pivot)
-      print 'hpr', plane.getName(), cur_hpr, plane.getHpr(pivot)
-      #plane.setHpr(pivot, cur_hpr + Vec3(hpr))
-      pivot.setHpr(cur_hpr + Vec3(hpr))
-      #plane.wrtReparentTo(render)
-      print plane.getName(), plane.getPos()
+      pivot.setHpr(render, Vec3(hpr))
+      if oldParent.getName() != 'render':
+        oldParent.removeNode()
+
+  def shakeBalls(self):
+    balls = filter(lambda x: 'ball' in x.getName(), self.world.getRigidBodies())
+    for ball in balls:
+      dx = uniform(-SHAKE_SPEED, SHAKE_SPEED)
+      dy = uniform(-SHAKE_SPEED, SHAKE_SPEED)
+      dz = uniform(-SHAKE_SPEED, SHAKE_SPEED)
+      ball.applyCentralImpulse(LVector3(dx, dy, dz))
 
   def makePlane(self, num, norm, pos, hpr):
     shape = BulletPlaneShape(norm, 0)
