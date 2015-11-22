@@ -11,6 +11,8 @@ from panda3d.core import Vec3
 from panda3d.core import Point3
 from panda3d.core import TransparencyAttrib
 from panda3d.core import PandaNode
+from panda3d.core import TextNode
+from direct.gui.OnscreenText import OnscreenText
 from panda3d.bullet import BulletWorld
 from panda3d.bullet import BulletPlaneShape
 from panda3d.bullet import BulletSphereShape
@@ -28,16 +30,19 @@ STANDART = (1, 1, 1, 1)
 SPEED = 5
 ROTATE_SPEED = 10
 SHAKE_SPEED = 15
+DEFAULT_BALLS = 3
 
 class Balls(ShowBase):
   def __init__(self):
     ShowBase.__init__(self)
+    self.title = OnscreenText(text="0 balls",
+      parent=base.a2dBottomRight, align=TextNode.ARight,
+      fg=(1, 1, 1, 1), pos=(-0.1, 0.1), scale=.08,
+      shadow=(0, 0, 0, 0.5))
     # exit on esc
     self.accept('escape', sys.exit)
     # disable standart mouse based camera control
     self.disableMouse()
-    #base.useDrive()
-    #base.useTrackball()
     # set camera position
     self.camera.setPos(0, -30, 25)
     self.camera.lookAt(0, 0, 0)
@@ -76,10 +81,12 @@ class Balls(ShowBase):
     self.accept('arrow_left', partial(self.rotateCube, hpr = (0, 0, -ROTATE_SPEED)))
     self.accept('arrow_right', partial(self.rotateCube, hpr = (0, 0, ROTATE_SPEED)))
     self.accept('space', self.shakeBalls)
+    self.accept('page_up', self.addRandomBall)
+    self.accept('page_down', self.rmBall)
 
-    cnt = 3
-    for num in xrange(cnt):
-      self.makeBall(num, (num, num, 2*(num + 1)))
+    self.cnt = 0
+    for num in xrange(DEFAULT_BALLS):
+      self.addRandomBall()
     self.picked = set([])
 
   def setupLight(self):
@@ -120,9 +127,11 @@ class Balls(ShowBase):
   def releaseBall(self):
     hits = self.rayCollision()
     if hits:
+      foundBall = False
       for picked in hits:
         hit_node = picked.getNode()
         if 'ball' in hit_node.getName():
+          foundBall = True
           x, y, z = picked.getHitPos()
           bodies = self.world.getRigidBodies()
           for elem in bodies:
@@ -137,7 +146,8 @@ class Balls(ShowBase):
               dx, dy = SPEED * cos(dir), SPEED * sin(dir)
               elem.applyCentralImpulse(LVector3(dx, dy, z))
               node.setColor(STANDART)
-      self.picked = set([])
+      if foundBall:
+        self.picked = set([])
 
   def rotateCube(self, hpr = (0, 0, 0)):
     # h, p, r = z, x, y
@@ -160,6 +170,25 @@ class Balls(ShowBase):
       dy = uniform(-SHAKE_SPEED, SHAKE_SPEED)
       dz = uniform(-SHAKE_SPEED, SHAKE_SPEED)
       ball.applyCentralImpulse(LVector3(dx, dy, dz))
+
+  def updateBallsCounter(self, num):
+    self.cnt += num
+    self.title.setText('%d balls' % (self.cnt))
+
+  def addRandomBall(self):
+    planes = render.findAllMatches('**/plane*')
+    x, y, z = zip(*[tuple(plane.getPos()) for plane in planes])
+    xPos = uniform(min(x), max(x))
+    yPos = uniform(min(y), max(y))
+    zPos = uniform(min(z), max(z))
+    self.makeBall(self.cnt, (xPos, yPos, zPos))
+    self.updateBallsCounter(1)
+
+  def rmBall(self):
+    if self.cnt != -1:
+      ball = render.find('**/ball_' + str(self.cnt - 1))
+      ball.removeNode()
+      self.updateBallsCounter(-1)
 
   def makePlane(self, num, norm, pos, hpr):
     shape = BulletPlaneShape(norm, 0)
