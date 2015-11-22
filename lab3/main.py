@@ -23,10 +23,10 @@ from math import cos
 from math import sin
 from functools import partial
 from random import uniform
+from random import random
 import sys
 
 HIGHLIGHT = (0, 1, 1, 1)
-STANDART = (1, 1, 1, 1)
 SPEED = 5
 ROTATE_SPEED = 10
 SHAKE_SPEED = 15
@@ -49,15 +49,6 @@ class Balls(ShowBase):
     #
     self.world = BulletWorld()
     self.world.setGravity(Vec3(0, 0, -9.81))
-    # debug
-    debugNode = BulletDebugNode('Debug')
-    debugNode.showWireframe(True)
-    debugNode.showConstraints(True)
-    debugNode.showBoundingBoxes(False)
-    debugNode.showNormals(False)
-    debugNP = render.attachNewNode(debugNode)
-    #debugNP.show()
-    #self.world.setDebugNode(debugNP.node())
 
     self.taskMgr.add(self.updateWorld, 'updateWorld')
     self.setupLight()
@@ -84,7 +75,8 @@ class Balls(ShowBase):
     self.accept('page_up', self.addRandomBall)
     self.accept('page_down', self.rmBall)
 
-    self.cnt = 0
+    self.ballCnt = 0
+    self.ballColors = {}
     for num in xrange(DEFAULT_BALLS):
       self.addRandomBall()
     self.picked = set([])
@@ -145,7 +137,7 @@ class Balls(ShowBase):
               dir = atan2(iy, ix)
               dx, dy = SPEED * cos(dir), SPEED * sin(dir)
               elem.applyCentralImpulse(LVector3(dx, dy, z))
-              node.setColor(STANDART)
+              node.setColor(self.ballColors[elem.getName()])
       if foundBall:
         self.picked = set([])
 
@@ -172,8 +164,8 @@ class Balls(ShowBase):
       ball.applyCentralImpulse(LVector3(dx, dy, dz))
 
   def updateBallsCounter(self, num):
-    self.cnt += num
-    self.title.setText('%d balls' % (self.cnt))
+    self.ballCnt += num
+    self.title.setText('%d balls' % (self.ballCnt))
 
   def addRandomBall(self):
     planes = render.findAllMatches('**/plane*')
@@ -181,12 +173,13 @@ class Balls(ShowBase):
     xPos = uniform(min(x), max(x))
     yPos = uniform(min(y), max(y))
     zPos = uniform(min(z), max(z))
-    self.makeBall(self.cnt, (xPos, yPos, zPos))
+    self.makeBall(self.ballCnt, (xPos, yPos, zPos))
     self.updateBallsCounter(1)
 
   def rmBall(self):
-    if self.cnt != -1:
-      ball = render.find('**/ball_' + str(self.cnt - 1))
+    if self.ballCnt != 0:
+      ball = render.find('**/ball_' + str(self.ballCnt - 1))
+      self.ballColors.pop(ball.getName())
       ball.removeNode()
       self.updateBallsCounter(-1)
 
@@ -204,6 +197,9 @@ class Balls(ShowBase):
     model.setColor(1, 1, 1, 0.25)
     model.reparentTo(physics)
 
+  def makeColor(self):
+    return (random(), random(), random(), 1)
+
   def makeBall(self, num, pos = (0, 0, 0)):
     shape = BulletSphereShape(0.5)
     node = BulletRigidBodyNode('ball_' + str(num))
@@ -215,6 +211,9 @@ class Balls(ShowBase):
     physics.setPos(*pos)
     self.world.attachRigidBody(node)
     model = loader.loadModel('models/ball')
+    color = self.makeColor()
+    model.setColor(color)
+    self.ballColors['ball_' + str(num)] = color
     model.reparentTo(physics)
 
 def main():
