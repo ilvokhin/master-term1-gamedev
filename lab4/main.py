@@ -61,8 +61,10 @@ class SpaceFlight(ShowBase):
       self.spawnAsteroid()
     #
     self.keyMap = {'left' : 0, 'right' : 0, 'up' : 0, 'down' : 0}
+    self.gamePause = False
     #
     self.accept('escape', sys.exit)
+    self.accept('p', self.pause)
     self.accept('arrow_left', self.setKey, ['left', True])
     self.accept('arrow_right', self.setKey, ['right', True])
     self.accept('arrow_up', self.setKey, ['up', True])
@@ -124,14 +126,15 @@ class SpaceFlight(ShowBase):
 
   def moveAsteroids(self, task):
     dt = globalClock.getDt()
-    for num, asteroid in enumerate(self.asteroids):
-      asteroid.setY(asteroid.getY() - ASTEROID_SPEED * dt)
-      rotation = self.asteroids_rotation[num]
-      asteroid.setH(asteroid.getH() - rotation * ASTEROID_SPEED * dt)
-      if asteroid.getY() < self.camera.getY() + 10:
-        asteroid.setX(randint(MIN_X, MAX_X))
-        asteroid.setY(randint(ASTEROID_SPAWN_MIN_Y, ASTEROID_SPAWN_MAX_Y))
-        asteroid.setZ(randint(MIN_Z, MAX_Z))
+    if not self.gamePause:
+      for num, asteroid in enumerate(self.asteroids):
+        asteroid.setY(asteroid.getY() - ASTEROID_SPEED * dt)
+        rotation = self.asteroids_rotation[num]
+        asteroid.setH(asteroid.getH() - rotation * ASTEROID_SPEED * dt)
+        if asteroid.getY() < self.camera.getY() + 10:
+          asteroid.setX(randint(MIN_X, MAX_X))
+          asteroid.setY(randint(ASTEROID_SPAWN_MIN_Y, ASTEROID_SPAWN_MAX_Y))
+          asteroid.setZ(randint(MIN_Z, MAX_Z))
     return task.cont
 
   def rollbackOnBoard(self, minPos, maxPos, getFunc, setFunc):
@@ -146,31 +149,36 @@ class SpaceFlight(ShowBase):
 
   def moveShip(self, task):
     dt = globalClock.getDt()
-    if self.keyMap['left']:
-      self.ship.setX(self.ship.getX() - SHIP_SPEED * dt)
-      self.ship.setH(TURN_SPEED)
-    elif self.keyMap['right']:
-      self.ship.setX(self.ship.getX() + SHIP_SPEED * dt)
-      self.ship.setH(-TURN_SPEED)
-    elif self.keyMap['up']:
-      self.ship.setZ(self.ship.getZ() + SHIP_SPEED * dt)
-      self.ship.setP(TURN_SPEED)
-    elif self.keyMap['down']:
-      self.ship.setZ(self.ship.getZ() - 5 * SHIP_SPEED * dt)
-      self.ship.setP(-TURN_SPEED)
+    if not self.gamePause:
+      if self.keyMap['left']:
+        self.ship.setX(self.ship.getX() - SHIP_SPEED * dt)
+        self.ship.setH(TURN_SPEED)
+      elif self.keyMap['right']:
+        self.ship.setX(self.ship.getX() + SHIP_SPEED * dt)
+        self.ship.setH(-TURN_SPEED)
+      elif self.keyMap['up']:
+        self.ship.setZ(self.ship.getZ() + SHIP_SPEED * dt)
+        self.ship.setP(TURN_SPEED)
+      elif self.keyMap['down']:
+        self.ship.setZ(self.ship.getZ() - 5 * SHIP_SPEED * dt)
+        self.ship.setP(-TURN_SPEED)
 
-    self.sky.setP(self.sky.getP() - dt * 10)
-    self.applyBound()
-    self.updateCamera()
+      self.sky.setP(self.sky.getP() - dt * 10)
+      self.applyBound()
+      self.updateCamera()
 
     return task.cont
 
   def handleCollisions(self, task):
-    for entry in self.queue.getEntries():
-      node = entry.getFromNodePath()
-      if node.getName() == 'ship_collision':
-        print 'You lose :('
+    if not self.gamePause:
+      for entry in self.queue.getEntries():
+        node = entry.getFromNodePath()
+        if node.getName() == 'ship_collision':
+          print 'You lose :('
     return task.cont
+
+  def pause(self):
+    self.gamePause = not self.gamePause
 
 def main():
   spaceFlight = SpaceFlight()
