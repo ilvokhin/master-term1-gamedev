@@ -2,6 +2,10 @@
 # -*- coding: utf-8 -*
 
 from direct.showbase.ShowBase import ShowBase
+from panda3d.core import CollisionHandlerQueue
+from panda3d.core import CollisionTraverser
+from panda3d.core import CollisionSphere
+from panda3d.core import CollisionNode
 from panda3d.core import Point3
 from panda3d.core import Fog
 
@@ -9,7 +13,8 @@ from random import choice
 from random import randint
 import sys
 
-SPACE_SPEED = 25
+SHIP_SPEED = 25
+SHIP_SPHERE_RADIUS = 10
 MIN_X = -100
 MAX_X = 100
 
@@ -24,6 +29,7 @@ TURN_SPEED = 10
 
 ASTEROID_MAX_CNT = 75
 ASTEROID_SPEED = 15
+ASTEROID_SPHERE_RADIUS = 3
 ASTEROID_SPAWN_MIN_Y = 320
 ASTEROID_SPAWN_MAX_Y = 520
 ASTEROID_ROTATE_MIN = -10
@@ -43,6 +49,10 @@ class SpaceFlight(ShowBase):
     self.fog.setColor(0, 0, 0)
     self.fog.setExpDensity(.002)
     #
+    self.queue = CollisionHandlerQueue()
+    self.trav = CollisionTraverser('traverser')
+    base.cTrav = self.trav
+    self.trav.showCollisions(render)
     self.loadShip()
     self.loadSky()
     self.asteroids = []
@@ -64,6 +74,7 @@ class SpaceFlight(ShowBase):
     #
     taskMgr.add(self.moveShip, 'moveShip')
     taskMgr.add(self.moveAsteroids, 'moveAsteroids')
+    taskMgr.add(self.handleCollisions, 'handleCollisions')
 
   def loadSky(self):
     self.sky = loader.loadModel('models/solar_sky_sphere.egg.pz')
@@ -77,18 +88,27 @@ class SpaceFlight(ShowBase):
     self.ship.reparentTo(render)
     self.ship.setPos(START_X, START_Y, START_Z)
     self.ship.setScale(0.25)
+    # add some physics
+    ship_col = self.ship.attachNewNode(CollisionNode('ship_collision'))
+    col_sphere = CollisionSphere(START_X, START_Y, 0, SHIP_SPHERE_RADIUS)
+    ship_col.node().addSolid(col_sphere)
+    ship_col.show()
+    self.trav.addCollider(ship_col, self.queue)
 
   def spawnAsteroid(self):
     asteroid = loader.loadModel(choice(ASTEROID_SHAPES))
     asteroid_tex = loader.loadTexture('models/rock03.jpg')
     asteroid.setTexture(asteroid_tex, 1)
     asteroid.reparentTo(render)
-    asteroid.setX(randint(MIN_X, MAX_X))
-    asteroid.setY(randint(ASTEROID_SPAWN_MIN_Y, ASTEROID_SPAWN_MAX_Y))
-    asteroid.setZ(randint(MIN_Z, MAX_Z))
     asteroid.setFog(self.fog)
     self.asteroids.append(asteroid)
     self.asteroids_rotation.append(randint(ASTEROID_ROTATE_MIN, ASTEROID_ROTATE_MAX))
+    #
+    num = len(self.asteroids) - 1
+    asteroid_col = asteroid.attachNewNode(CollisionNode('asteroid_collision_%d' % num))
+    col_sphere = CollisionSphere(0, 0, 0, ASTEROID_SPHERE_RADIUS)
+    asteroid_col.node().addSolid(col_sphere)
+    asteroid_col.show()
 
   def setKey(self, key, value):
     self.keyMap[key] = value
@@ -127,22 +147,29 @@ class SpaceFlight(ShowBase):
   def moveShip(self, task):
     dt = globalClock.getDt()
     if self.keyMap['left']:
-      self.ship.setX(self.ship.getX() - SPACE_SPEED * dt)
+      self.ship.setX(self.ship.getX() - SHIP_SPEED * dt)
       self.ship.setH(TURN_SPEED)
     elif self.keyMap['right']:
-      self.ship.setX(self.ship.getX() + SPACE_SPEED * dt)
+      self.ship.setX(self.ship.getX() + SHIP_SPEED * dt)
       self.ship.setH(-TURN_SPEED)
     elif self.keyMap['up']:
-      self.ship.setZ(self.ship.getZ() + SPACE_SPEED * dt)
+      self.ship.setZ(self.ship.getZ() + SHIP_SPEED * dt)
       self.ship.setP(TURN_SPEED)
     elif self.keyMap['down']:
-      self.ship.setZ(self.ship.getZ() - 5 * SPACE_SPEED * dt)
+      self.ship.setZ(self.ship.getZ() - 5 * SHIP_SPEED * dt)
       self.ship.setP(-TURN_SPEED)
 
     self.sky.setP(self.sky.getP() - dt * 10)
     self.applyBound()
     self.updateCamera()
 
+    return task.cont
+
+  def handleCollisions(self, task):
+    for entry in self.queue.getEntries():
+      node = entry.getFromNodePath()
+      if node.getName() == 'ship_collision':
+        print 'You lose :('
     return task.cont
 
 def main():
