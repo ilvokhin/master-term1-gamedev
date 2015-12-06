@@ -1,11 +1,13 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*
 
+from direct.gui.OnscreenText import OnscreenText
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import CollisionHandlerQueue
 from panda3d.core import CollisionTraverser
 from panda3d.core import CollisionSphere
 from panda3d.core import CollisionNode
+from panda3d.core import TextNode
 from panda3d.core import Point3
 from panda3d.core import Fog
 
@@ -40,9 +42,20 @@ ASTEROID_SHAPES = [
   'models/alice-shapes--octahedron/octahedron.egg'
 ]
 
+DEBUG = False
+
 class SpaceFlight(ShowBase):
   def __init__(self):
     ShowBase.__init__(self)
+    self.text = OnscreenText \
+    (
+      parent = base.a2dBottomCenter,
+      align=TextNode.ARight,
+      fg=(1, 1, 1, 1),
+      pos=(0.2, 1.),
+      scale=0.1,
+      shadow=(0, 0, 0, 0.5)
+    )
     self.setBackgroundColor(0, 0, 0)
     self.disableMouse()
     self.fog = Fog('distanceFog')
@@ -52,19 +65,15 @@ class SpaceFlight(ShowBase):
     self.queue = CollisionHandlerQueue()
     self.trav = CollisionTraverser('traverser')
     base.cTrav = self.trav
-    self.trav.showCollisions(render)
-    self.loadShip()
     self.loadSky()
-    self.asteroids = []
-    self.asteroids_rotation = []
-    for _ in xrange(ASTEROID_MAX_CNT):
-      self.spawnAsteroid()
-    #
+    self.reloadGame()
+
     self.keyMap = {'left' : 0, 'right' : 0, 'up' : 0, 'down' : 0}
     self.gamePause = False
     #
     self.accept('escape', sys.exit)
     self.accept('p', self.pause)
+    self.accept('r', self.reloadGame)
     self.accept('arrow_left', self.setKey, ['left', True])
     self.accept('arrow_right', self.setKey, ['right', True])
     self.accept('arrow_up', self.setKey, ['up', True])
@@ -77,6 +86,12 @@ class SpaceFlight(ShowBase):
     taskMgr.add(self.moveShip, 'moveShip')
     taskMgr.add(self.moveAsteroids, 'moveAsteroids')
     taskMgr.add(self.handleCollisions, 'handleCollisions')
+    #
+    if DEBUG:
+      self.trav.showCollisions(render)
+      render.find('**/ship_collision').show()
+      for asteroid in render.findAllMatches('**/asteroid_collision*'):
+        asteroid.show()
 
   def loadSky(self):
     self.sky = loader.loadModel('models/solar_sky_sphere.egg.pz')
@@ -94,7 +109,6 @@ class SpaceFlight(ShowBase):
     ship_col = self.ship.attachNewNode(CollisionNode('ship_collision'))
     col_sphere = CollisionSphere(START_X, START_Y, 0, SHIP_SPHERE_RADIUS)
     ship_col.node().addSolid(col_sphere)
-    ship_col.show()
     self.trav.addCollider(ship_col, self.queue)
 
   def spawnAsteroid(self):
@@ -110,7 +124,10 @@ class SpaceFlight(ShowBase):
     asteroid_col = asteroid.attachNewNode(CollisionNode('asteroid_collision_%d' % num))
     col_sphere = CollisionSphere(0, 0, 0, ASTEROID_SPHERE_RADIUS)
     asteroid_col.node().addSolid(col_sphere)
-    asteroid_col.show()
+    #
+    asteroid.setX(randint(MIN_X, MAX_X))
+    asteroid.setY(randint(ASTEROID_SPAWN_MIN_Y, ASTEROID_SPAWN_MAX_Y))
+    asteroid.setZ(randint(MIN_Z, MAX_Z))
 
   def setKey(self, key, value):
     self.keyMap[key] = value
@@ -174,11 +191,31 @@ class SpaceFlight(ShowBase):
       for entry in self.queue.getEntries():
         node = entry.getFromNodePath()
         if node.getName() == 'ship_collision':
-          print 'You lose :('
+          self.gamePause = True
+          self.text.setText('You lose :(')
     return task.cont
 
   def pause(self):
     self.gamePause = not self.gamePause
+
+  def reloadGame(self):
+    self.gamePause = False
+    self.text.clearText()
+
+    if hasattr(self, 'asteroids'):
+      for asteroid in self.asteroids:
+        asteroid.removeNode()
+
+    self.asteroids = []
+    self.asteroids_rotation = []
+
+    if hasattr(self, 'ship'):
+      self.ship.removeNode()
+
+    self.loadShip()
+
+    for _ in xrange(ASTEROID_MAX_CNT):
+      self.spawnAsteroid()
 
 def main():
   spaceFlight = SpaceFlight()
