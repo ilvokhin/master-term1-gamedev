@@ -31,7 +31,7 @@ SPHERE_RADIUS = 3
 
 CRYSTALS_CNT = 15
 
-DEBUG = True
+DEBUG = False
 
 class Tunnel(ShowBase):
   def __init__(self):
