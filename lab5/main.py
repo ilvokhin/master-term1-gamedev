@@ -7,6 +7,11 @@ from direct.showbase.ShowBase import ShowBase
 from direct.interval.MetaInterval import Sequence
 from direct.interval.LerpInterval import LerpFunc
 from direct.interval.FunctionInterval import Func
+from panda3d.core import CollisionHandlerQueue
+from panda3d.core import CollisionTraverser
+from panda3d.core import CollisionSphere
+from panda3d.core import CollisionBox
+from panda3d.core import CollisionNode
 from panda3d.core import LPoint3f
 from panda3d.core import LVector3f
 from panda3d.core import Fog
@@ -22,9 +27,11 @@ TUNNEL_CENTER = (0, 0, 2)
 TUNNEL_RADIUS = 1.3
 
 SPHERE_SPEED = 5
+SPHERE_RADIUS = 3
 
 CRYSTALS_CNT = 15
-DELTA = 1
+
+DEBUG = True
 
 class Tunnel(ShowBase):
   def __init__(self):
@@ -51,6 +58,9 @@ class Tunnel(ShowBase):
     self.accept('arrow_up-up', self.setKey, ['up', False])
     self.accept('arrow_down-up', self.setKey, ['down', False])
 
+    self.queue = CollisionHandlerQueue()
+    self.trav = CollisionTraverser('traverser')
+    base.cTrav = self.trav
     #
     self.makeTunnel()
     self.makeSphere()
@@ -58,9 +68,16 @@ class Tunnel(ShowBase):
     #
     self.crystals = []
     for _ in xrange(CRYSTALS_CNT):
-      self.makeRandomCrystal(randint(0, TUNNEL_CNT - 1))
+      self.makeRandomCrystal(randint(1, TUNNEL_CNT - 1))
     #
     taskMgr.add(self.moveSphere, 'moveSphere')
+    taskMgr.add(self.handleCollisions, 'handleCollisions')
+    #
+    if DEBUG:
+      self.trav.showCollisions(render)
+      render.find('**/sphere_collision').show()
+      for crystal in render.findAllMatches('**/crystal_collision'):
+        crystal.show()
 
   def makeTunnel(self):
     self.tunnel = [None] * TUNNEL_CNT
@@ -77,11 +94,22 @@ class Tunnel(ShowBase):
     self.sphere.reparentTo(render)
     self.sphere.setScale(0.07)
     self.sphere.setZ(2)
+    #
+    col_node = self.sphere.attachNewNode(CollisionNode('sphere_collision'))
+    col_sphere = CollisionSphere(0, 0, 2, SPHERE_RADIUS)
+    col_node.node().addSolid(col_sphere)
+    self.trav.addCollider(col_node, self.queue)
 
   def makeRandomCrystal(self, tun):
     crystal = loader.loadModel('models/bvw-f2004--purplecrystal/purplecrystal.egg')
     crystal.reparentTo(self.tunnel[tun])
+    #
+    pMin, pMax = LPoint3f(), LPoint3f()
+    col_node = crystal.attachNewNode(CollisionNode('crystal_collision'))
+    col_box = CollisionBox(pMin, pMax)
+    col_node.node().addSolid(col_box)
     crystal.setScale(0.1)
+
     pos = ['rx', '-rx', 'ry', 'down', 'up']
     rnd = choice(pos)
     Z = randint(0, 10)
@@ -165,6 +193,13 @@ class Tunnel(ShowBase):
     if ((self.sphere.getPos() + addVec) - LPoint3f(TUNNEL_CENTER)).length() < TUNNEL_RADIUS:
       self.sphere.setPos(self.sphere.getPos() + addVec)
 
+    return task.cont
+
+  def handleCollisions(self, task):
+    for entry in self.queue.getEntries():
+      node = entry.getFromNodePath()
+      if node.getName() == 'sphere_collision':
+        print 'You lose :('
     return task.cont
 
 def main():
