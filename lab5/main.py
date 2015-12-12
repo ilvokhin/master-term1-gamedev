@@ -69,6 +69,7 @@ class Tunnel(ShowBase):
     self.crystals = []
     for _ in xrange(CRYSTALS_CNT):
       self.makeRandomCrystal(randint(1, TUNNEL_CNT - 1))
+    self.collisionCnt = 0
     #
     taskMgr.add(self.moveSphere, 'moveSphere')
     taskMgr.add(self.handleCollisions, 'handleCollisions')
@@ -76,8 +77,6 @@ class Tunnel(ShowBase):
     if DEBUG:
       self.trav.showCollisions(render)
       render.find('**/sphere_collision').show()
-      for crystal in render.findAllMatches('**/crystal_collision'):
-        crystal.show()
 
   def makeTunnel(self):
     self.tunnel = [None] * TUNNEL_CNT
@@ -105,10 +104,13 @@ class Tunnel(ShowBase):
     crystal.reparentTo(self.tunnel[tun])
     #
     pMin, pMax = LPoint3f(), LPoint3f()
+    crystal.calcTightBounds(pMin, pMax)
     col_node = crystal.attachNewNode(CollisionNode('crystal_collision'))
     col_box = CollisionBox(pMin, pMax)
     col_node.node().addSolid(col_box)
     crystal.setScale(0.1)
+    if DEBUG:
+      col_node.show()
 
     pos = ['rx', '-rx', 'ry', 'down', 'up']
     rnd = choice(pos)
@@ -199,7 +201,8 @@ class Tunnel(ShowBase):
     for entry in self.queue.getEntries():
       node = entry.getFromNodePath()
       if node.getName() == 'sphere_collision':
-        print 'You lose :('
+        self.collisionCnt += 1
+        print 'Oops! Collision counter: %d' % self.collisionCnt
     return task.cont
 
 def main():
