@@ -13,8 +13,22 @@ player = {img = nil, x = magic.startPlayerX, y = magic.startPlayerY, speed = 250
 gun = {canShoot = true, canShootTimerMax = 0.2,
   canShootTimer = nil, bullet = nil, speed = 350, sound = nil}
 bullets = { }
+imgFiles = {
+  'assets/images/aircraft_1b.png',
+  'assets/images/aircraft_1b.png',
+  'assets/images/aircraft_1c.png',
+  'assets/images/aircraft_1d.png',
+  'assets/images/aircraft_1e.png',
+  'assets/images/aircraft_2b.png',
+  'assets/images/aircraft_2c.png',
+  'assets/images/aircraft_2d.png',
+  'assets/images/aircraft_2e.png',
+  'assets/images/aircraft_3b.png',
+  'assets/images/aircraft_3d.png',
+  'assets/images/aircraft_3e.png'
+}
 enemyRes = {makeTimerMax = 1., makeTimer = nil,
-  img = nil, speed = 200}
+  imgs = {}, speed = 200}
 enemies = { }
 game = {isAlive = true, score = 0, hits = 0}
 
@@ -43,7 +57,9 @@ function love.load()
   gun.sound = love.audio.newSource('assets/sounds/gun-sound.wav', 'static')
   --
   enemyRes.makeTimer = enemyRes.makeTimerMax
-  enemyRes.img = love.graphics.newImage('assets/images/aircraft_1b.png')
+  for k, img in pairs(imgFiles) do
+    table.insert(enemyRes.imgs, love.graphics.newImage(img))
+  end
   --
   loveframes.SetState('startMenu')
   showStartMenu()
@@ -173,7 +189,8 @@ function updateEnemies(dt)
   if enemyRes.makeTimer < 0 then
     enemyRes.makeTimer = enemyRes.makeTimerMax
     local rnd = math.random(magic.enemyMargin, love.graphics.getWidth() - magic.enemyMargin)
-    local newEnemy = {img = enemyRes.img, x = rnd, y = -magic.enemyMargin}
+    local imgPos = math.random(1, #enemyRes.imgs - 1)
+    local newEnemy = {img = enemyRes.imgs[imgPos], x = rnd, y = -magic.enemyMargin}
     table.insert(enemies, newEnemy)
   end
   for k, enemy in pairs(enemies) do
