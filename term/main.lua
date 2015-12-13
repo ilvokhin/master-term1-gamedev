@@ -75,14 +75,60 @@ function showStartMenu()
   end
 end
 
+function restartGame()
+  bullets = { }
+  enemies = { }
+  gun.canShoot = true
+  gun.canShootTimer = gun.canShootTimerMax
+  player.x = magic.startPlayerX
+  player.y = magic.startPlayerY
+  game.score = 0
+  game.isAlive = true
+end
+
 function showPauseMenu()
-  print('pause menu should be here')
+  local margin = 30
+  --
+  local resume = loveframes.Create('button')
+  resume:SetText('Resume')
+  resume:SetPos(
+    love.graphics.getWidth() / 2 - margin,
+    love.graphics.getHeight() / 2
+  )
+  resume:SetState('pauseMenu')
+  resume.OnClick = function(object)
+    loveframes.SetState('none')
+  end
+  --
+  local restart = loveframes.Create('button')
+  restart:SetText('Restart')
+  restart:SetPos(
+    love.graphics.getWidth() / 2 - margin,
+    love.graphics.getHeight() / 2 + margin
+  )
+  restart:SetState('pauseMenu')
+  restart.OnClick = function(object)
+    restartGame()
+    loveframes.SetState('none')
+  end
+  --
+  local exit = loveframes.Create('button')
+  exit:SetText('Exit')
+  exit:SetPos(
+    love.graphics.getWidth() / 2 - margin,
+    love.graphics.getHeight() / 2 + 2 * margin
+  )
+  exit:SetState('pauseMenu')
+  exit.OnClick = function(object)
+    love.event.push('quit')
+  end
 end
 
 function love.update(dt)
   if love.keyboard.isDown('escape') then
-    --loveframes.SetState('pauseMenu')
-    loveframes.SetState('startMenu')
+    loveframes.SetState('pauseMenu')
+    showPauseMenu()
+    --loveframes.SetState('startMenu')
   end
 
   if loveframes.GetState() == 'none' then
@@ -154,14 +200,7 @@ function love.update(dt)
     end
     --
     if not game.isAlive and love.keyboard.isDown('r') then
-      bullets = { }
-      enemies = { }
-      gun.canShoot = true
-      gun.canShootTimer = gun.canShootTimerMax
-      player.x = magic.startPlayerX
-      player.y = magic.startPlayerY
-      game.score = 0
-      game.isAlive = true
+      restartGame()
     end
   end
   -- gui stuff
