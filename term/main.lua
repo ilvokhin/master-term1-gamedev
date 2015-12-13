@@ -13,7 +13,7 @@ player = {img = nil, x = magic.startPlayerX, y = magic.startPlayerY, speed = 250
 gun = {canShoot = true, canShootTimerMax = 0.2,
   canShootTimer = nil, bullet = nil, speed = 350, sound = nil}
 bullets = { }
-imgFiles = {
+startImgFiles = {
   'assets/images/aircraft_1b.png',
   'assets/images/aircraft_1b.png',
   'assets/images/aircraft_1c.png',
@@ -27,8 +27,37 @@ imgFiles = {
   'assets/images/aircraft_3d.png',
   'assets/images/aircraft_3e.png'
 }
+
+lightImgFiles = {
+  'assets/images/aircraft_1b_hit.png',
+  'assets/images/aircraft_1c_hit.png',
+  'assets/images/aircraft_1d_hit.png',
+  'assets/images/aircraft_1e_hit.png',
+  'assets/images/aircraft_2b_hit.png',
+  'assets/images/aircraft_2c_hit.png',
+  'assets/images/aircraft_2d_hit.png',
+  'assets/images/aircraft_2e_hit.png',
+  'assets/images/aircraft_3b_hit.png',
+  'assets/images/aircraft_3d_hit.png',
+  'assets/images/aircraft_3e_hit.png'
+}
+
+hitImgFiles = {
+  'assets/images/aircraft_1b_destroyed.png',
+  'assets/images/aircraft_1c_destroyed.png',
+  'assets/images/aircraft_1d_destroyed.png',
+  'assets/images/aircraft_1e_destroyed.png',
+  'assets/images/aircraft_2b_destroyed.png',
+  'assets/images/aircraft_2c_destroyed.png',
+  'assets/images/aircraft_2d_destroyed.png',
+  'assets/images/aircraft_2e_destroyed.png',
+  'assets/images/aircraft_3b_destroyed.png',
+  'assets/images/aircraft_3d_destroyed.png',
+  'assets/images/aircraft_3e_destroyed.png'
+}
+
 enemyRes = {makeTimerMax = 1., makeTimer = nil,
-  imgs = {}, speed = 200}
+  startImgs = {}, lightImgs = {}, hitImgs = {}, speed = 200, hitMax = 1, lightMax = 0.5}
 enemies = { }
 game = {isAlive = true, score = 0, hits = 0}
 
@@ -57,8 +86,14 @@ function love.load()
   gun.sound = love.audio.newSource('assets/sounds/gun-sound.wav', 'static')
   --
   enemyRes.makeTimer = enemyRes.makeTimerMax
-  for k, img in pairs(imgFiles) do
-    table.insert(enemyRes.imgs, love.graphics.newImage(img))
+  for k, img in pairs(startImgFiles) do
+    table.insert(enemyRes.startImgs, love.graphics.newImage(img))
+  end
+  for k, img in pairs(lightImgFiles) do
+    table.insert(enemyRes.lightImgs, love.graphics.newImage(img))
+  end
+  for k, img in pairs(hitImgFiles) do
+    table.insert(enemyRes.hitImgs, love.graphics.newImage(img))
   end
   --
   loveframes.SetState('startMenu')
@@ -99,6 +134,7 @@ function restartGame()
   player.x = magic.startPlayerX
   player.y = magic.startPlayerY
   game.score = 0
+  game.hits = 0
   game.isAlive = true
 end
 
@@ -189,25 +225,45 @@ function updateEnemies(dt)
   if enemyRes.makeTimer < 0 then
     enemyRes.makeTimer = enemyRes.makeTimerMax
     local rnd = math.random(magic.enemyMargin, love.graphics.getWidth() - magic.enemyMargin)
-    local imgPos = math.random(1, #enemyRes.imgs - 1)
-    local newEnemy = {img = enemyRes.imgs[imgPos], x = rnd, y = -magic.enemyMargin}
+    local imgPos = math.random(1, #enemyRes.startImgs - 1)
+    local newEnemy = {img = enemyRes.startImgs[imgPos], x = rnd, y = -magic.enemyMargin,
+      hit = 0, imgNum = imgPos, isLight = false, sumLight = 0}
     table.insert(enemies, newEnemy)
   end
   for k, enemy in pairs(enemies) do
     enemy.y = enemy.y + enemyRes.speed * dt
+    if enemy.isLight then
+      enemy.sumLight = enemy.sumLight + dt
+      if enemy.sumLight > enemyRes.lightMax then
+        enemy.sumLight = 0
+        enemy.isLight = false
+        enemy.img = enemyRes.hitImgs[enemy.imgNum]
+      end
+    end
     if enemy.y > love.graphics.getHeight() + magic.enemyMargin then
       table.remove(enemies, k)
     end
+    if enemy.hit > enemyRes.hitMax then
+      game.score = game.score + 1
+      table.remove(enemies, k)
+    end
   end
+end
+
+function hitEnemy(enemy, dt)
+  enemy.isLight = true
+  enemy.hit = enemy.hit + 1
+  enemy.img = enemyRes.lightImgs[enemy.imgNum]
+  enemy.sumLight = dt
 end
 
 function updateCollisions(dt)
   for i, enemy in pairs(enemies) do
     for j, bullet in pairs(bullets) do
       if collide(enemy, bullet) then
-        table.remove(enemies, i)
+        hitEnemy(enemy, dt)
         table.remove(bullets, j)
-        game.score = game.score + 1
+        game.hits = game.hits + 1
       end
     end
     if collide(enemy, player) and game.isAlive then
@@ -264,6 +320,7 @@ end
 function drawScore()
   love.graphics.setColor(255, 255, 255)
   love.graphics.print('Score: ' .. tostring(game.score), magic.scoreX, magic.scoreY)
+  love.graphics.print('Hits: ' .. tostring(game.hits), magic.scoreX, magic.scoreY + 20)
 end
 
 function love.draw()
