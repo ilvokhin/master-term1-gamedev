@@ -1,16 +1,38 @@
 -- Based on DawsonG Love2D tutorial
 -- https://github.com/DawsonG/Love2d-Tutorial-Scrolling-Shooter
 
+loveframes = require("loveframes")
+
 -- some useful globals here
 debug = true
-player = {img = nil, x = 200, y = 500, speed = 250}
+magic = {bulletMargin = 4, enemyMargin = 20, enemyRotate = math.pi,
+  restartXMargin = 50, restartYMargin = 10,
+  startPlayerX = 200, startPlayerY = 500,
+  scoreX = 400, scoreY = 10}
+player = {img = nil, x = magic.startPlayerX, y = magic.startPlayerY, speed = 250}
 gun = {canShoot = true, canShootTimerMax = 0.2,
-  canShootTimer = nil, bullet = nil, speed = 350}
+  canShootTimer = nil, bullet = nil, speed = 350, sound = nil}
 bullets = { }
-magic = {bulletMargin = 4, enemyMargin = 20, enemyRotate = math.pi}
-enemyRes = {makeTimerMax = 0.4, makeTimer = nil,
+enemyRes = {makeTimerMax = 1., makeTimer = nil,
   img = nil, speed = 200}
 enemies = { }
+game = {isAlive = true, score = 0, hits = 0}
+
+function collide(enemy, other)
+  -- we rotate enemy pic on draw,
+  -- so we should check collide against
+  -- rotated pic
+  local rotatedX = enemy.x - enemy.img:getWidth()
+  local rotatedY = enemy.y - enemy.img:getHeight()
+  if
+    enemy.x < other.x or
+    other.x + other.img:getWidth() < rotatedX or
+    enemy.y < other.y or
+    other.y + other.img:getHeight() < rotatedY then
+    return false
+  end
+  return true
+end
 
 function love.load()
   --
@@ -18,9 +40,11 @@ function love.load()
   --
   gun.canShootTimer = gun.canShootTimerMax
   gun.bullet = love.graphics.newImage('assets/bullet.png')
+  gun.sound = love.audio.newSource('assets/sounds/gun-sound.wav', 'static')
   --
   enemyRes.makeTimer = enemyRes.makeTimerMax
   enemyRes.img = love.graphics.newImage('assets/images/aircraft_1b.png')
+  --
 end
 
 function love.update(dt)
@@ -52,9 +76,10 @@ function love.update(dt)
   end
 
   if love.keyboard.isDown(' ', 'rctrl', 'lctrl', 'ctrl') and gun.canShoot then
-    newBullet = {x = player.x + player.img:getWidth() / 2 - magic.bulletMargin, y = player.y,
+    local newBullet = {x = player.x + player.img:getWidth() / 2 - magic.bulletMargin, y = player.y,
       img = gun.bullet}
     table.insert(bullets, newBullet)
+    gun.sound:play()
     gun.canShoot = false
     gun.canShootTimer = gun.canShootTimerMax
   end
@@ -69,8 +94,8 @@ function love.update(dt)
   enemyRes.makeTimer = enemyRes.makeTimer - dt
   if enemyRes.makeTimer < 0 then
     enemyRes.makeTimer = enemyRes.makeTimerMax
-    rnd = math.random(magic.enemyMargin, love.graphics.getWidth() - magic.enemyMargin)
-    newEnemy = {img = enemyRes.img, x = rnd, y = -magic.enemyMargin}
+    local rnd = math.random(magic.enemyMargin, love.graphics.getWidth() - magic.enemyMargin)
+    local newEnemy = {img = enemyRes.img, x = rnd, y = -magic.enemyMargin}
     table.insert(enemies, newEnemy)
   end
   for k, enemy in pairs(enemies) do
@@ -79,10 +104,45 @@ function love.update(dt)
       table.remove(enemies, k)
     end
   end
+  -- check collisions
+  for i, enemy in pairs(enemies) do
+    for j, bullet in pairs(bullets) do
+      if collide(enemy, bullet) then
+        table.remove(enemies, i)
+        table.remove(bullets, j)
+        game.score = game.score + 1
+     end
+    end
+    if collide(enemy, player) and game.isAlive then
+      table.remove(enemies, i)
+      game.isAlive = false
+    end
+  end
+  --
+  if not game.isAlive and love.keyboard.isDown('r') then
+    bullets = { }
+    enemies = { }
+    gun.canShoot = true
+    gun.canShootTimer = gun.canShootTimerMax
+    player.x = magic.startPlayerX
+    player.y = magic.startPlayerY
+    game.score = 0
+    game.isAlive = true
+  end
+  -- gui stuff
+  loveframes.update(dt)
 end
 
-function love.draw(dt)
-  love.graphics.draw(player.img, player.x, player.y)
+function love.draw()
+  if game.isAlive then
+    love.graphics.draw(player.img, player.x, player.y)
+  else
+    love.graphics.print(
+      'Press \'R\' to restart',
+      love.graphics:getWidth() / 2 - magic.restartXMargin,
+      love.graphics:getHeight() / 2 - magic.restartYMargin
+    )
+  end
 
   for k, bullet in pairs(bullets) do
     love.graphics.draw(bullet.img, bullet.x, bullet.y)
@@ -91,4 +151,13 @@ function love.draw(dt)
   for k, enemy in pairs(enemies) do
     love.graphics.draw(enemy.img, enemy.x, enemy.y, magic.enemyRotate)
   end
+
+  love.graphics.setColor(255, 255, 255)
+  love.graphics.print('Score: ' .. tostring(game.score), magic.scoreX, magic.scoreY)
+  --
+  loveframes.draw()
+end
+
+function love.textinput(text)
+  loveframes.textinput(text)
 end

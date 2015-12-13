@@ -1,0 +1,3 @@
+[submodule "term/loveframes"]
+	path = term/loveframes
+	url = git@github.com:KennyShields/LoveFrames.git
