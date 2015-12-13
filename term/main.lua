@@ -8,10 +8,10 @@ debug = true
 magic = {bulletMargin = 4, enemyMargin = 20, enemyRotate = math.pi,
   restartXMargin = 50, restartYMargin = 10,
   startPlayerX = 200, startPlayerY = 500,
-  scoreX = 400, scoreY = 10}
+  scoreX = 400, scoreY = 10, startBullets = 10}
 player = {img = nil, x = magic.startPlayerX, y = magic.startPlayerY, speed = 250}
 gun = {canShoot = true, canShootTimerMax = 0.2,
-  canShootTimer = nil, bullet = nil, speed = 350, sound = nil}
+  canShootTimer = nil, bullet = nil, speed = 350, sound = nil, bullets = magic.startBullets}
 bullets = { }
 startImgFiles = {
   'assets/images/aircraft_1b.png',
@@ -59,7 +59,9 @@ hitImgFiles = {
 enemyRes = {makeTimerMax = 1., makeTimer = nil,
   startImgs = {}, lightImgs = {}, hitImgs = {}, speed = 200, hitMax = 1, lightMax = 0.5}
 enemies = { }
-game = {isAlive = true, score = 0, hits = 0}
+game = {isAlive = true, score = 0, hits = 0, checkRecord = false}
+
+bestScores = {}
 
 function collide(enemy, other)
   -- we rotate enemy pic on draw,
@@ -96,6 +98,25 @@ function love.load()
     table.insert(enemyRes.hitImgs, love.graphics.newImage(img))
   end
   --
+  local score = nil
+  if love.filesystem.exists('scores.txt') then
+    for line in love.filesystem.lines('scores.txt') do
+      local score = {}
+      local cnt = 1
+      for i in line.gmatch(line, "%S+") do
+        if cnt == 1 then
+          score.name = i
+        elseif cnt == 2 then
+          score.score = tonumber(i)
+        else
+          score.hits = tonumber(i)
+        end
+        cnt = cnt + 1
+      end
+      table.insert(bestScores, score)
+    end
+  end
+  --
   loveframes.SetState('startMenu')
   showStartMenu()
 end
@@ -114,11 +135,23 @@ function showStartMenu()
     loveframes.SetState('none')
   end
   --
+  local records = loveframes.Create('button')
+  records:SetText('Records')
+  records:SetPos(
+    love.graphics.getWidth() / 2 - margin,
+    love.graphics.getHeight() / 2 + margin
+  )
+  records:SetState('startMenu')
+  records.OnClick = function(object)
+    loveframes.SetState('bestScores')
+    showBestScores()
+  end
+  --
   local exit = loveframes.Create('button')
   exit:SetText('Exit')
   exit:SetPos(
     love.graphics.getWidth() / 2 - margin,
-    love.graphics.getHeight() / 2 + margin
+    love.graphics.getHeight() / 2 + 2 * margin
   )
   exit:SetState('startMenu')
   exit.OnClick = function(object)
@@ -136,6 +169,8 @@ function restartGame()
   game.score = 0
   game.hits = 0
   game.isAlive = true
+  game.checkRecord = false
+  gun.bullets = magic.startBullets
 end
 
 function showPauseMenu()
@@ -152,11 +187,23 @@ function showPauseMenu()
     loveframes.SetState('none')
   end
   --
+  local records = loveframes.Create('button')
+  records:SetText('Records')
+  records:SetPos(
+    love.graphics.getWidth() / 2 - margin,
+    love.graphics.getHeight() / 2 + margin
+  )
+  records:SetState('pauseMenu')
+  records.OnClick = function(object)
+    loveframes.SetState('bestScores')
+    showBestScores()
+  end
+  --
   local restart = loveframes.Create('button')
   restart:SetText('Restart')
   restart:SetPos(
     love.graphics.getWidth() / 2 - margin,
-    love.graphics.getHeight() / 2 + margin
+    love.graphics.getHeight() / 2 + 2 * margin
   )
   restart:SetState('pauseMenu')
   restart.OnClick = function(object)
@@ -168,11 +215,100 @@ function showPauseMenu()
   exit:SetText('Exit')
   exit:SetPos(
     love.graphics.getWidth() / 2 - margin,
-    love.graphics.getHeight() / 2 + 2 * margin
+    love.graphics.getHeight() / 2 + 3 * margin
   )
   exit:SetState('pauseMenu')
   exit.OnClick = function(object)
     love.event.push('quit')
+  end
+end
+
+function cmp(x, y)
+  if x.score == y.score then
+    return x.hits > y.hits
+  end
+  return x.score > y.score
+end
+
+function addRecord()
+  local margin = 30
+  local textInput = loveframes.Create('textinput')
+  textInput:SetState('addRecord')
+  textInput:SetPos(
+    love.graphics.getWidth() / 2 - margin,
+    love.graphics.getHeight() / 2 + margin
+  )
+  textInput:SetWidth(75)
+  textInput.OnEnter = function(object)
+    local newBestScores = {}
+    local curScore = {name = object:GetText(), score = game.score, hits = game.hits}
+    table.sort(bestScores, cmp)
+    if #bestScores == 0 then
+      table.insert(newBestScores, curScore)
+    else
+      gotNew = false
+      for k, v in pairs(bestScores) do
+        if cmp(curScore, bestScores[k]) and not gotNew then
+          table.insert(newBestScores, curScore)
+          gotNew = true
+        end
+        table.insert(newBestScores, v)
+      end
+    end
+    bestScores = {}
+    local cnt = 1
+    while cnt < 4 do
+      table.insert(bestScores, newBestScores[cnt])
+      cnt = cnt + 1
+    end
+    data = ''
+    for k, v in pairs(bestScores) do
+      data = data..v.name..'\t'..tostring(v.score)..'\t'..tostring(v.hits)..'\n'
+    end
+    success = love.filesystem.write('scores.txt', data)
+    loveframes.SetState('none')
+  end
+end
+
+function addTextToGrid(grid, i, j, str)
+  local text = loveframes.Create('text')
+  text:SetState('bestScores')
+  text:SetSize(50, 25)
+  text:SetText(str)
+  grid:AddItem(text, i, j)
+end
+
+function showBestScores()
+  local margin = 30
+  local grid = loveframes.Create('grid')
+  grid:SetState('bestScores')
+  grid:SetPos(love.graphics.getWidth() / 4 - 40, love.graphics.getHeight() / 4)
+  grid:SetRows(4)
+  grid:SetColumns(3)
+  grid:SetCellHeight(25)
+  grid:SetCellWidth(100)
+  grid:SetCellPadding(5)
+  grid:SetItemAutoSize(true)
+  -- add head
+  addTextToGrid(grid, 1, 1, 'name')
+  addTextToGrid(grid, 1, 2, 'score')
+  addTextToGrid(grid, 1, 3, 'hits')
+
+  for k, v in pairs(bestScores) do
+    addTextToGrid(grid, k + 1, 1, v.name)
+    addTextToGrid(grid, k + 1, 2, tostring(v.score))
+    addTextToGrid(grid, k + 1, 3, tostring(v.hits))
+  end
+  --
+  local gotIt = loveframes.Create('button')
+  gotIt:SetText('Got it!')
+  gotIt:SetPos(
+    love.graphics.getWidth() / 2 - margin,
+    love.graphics.getHeight() / 2 + margin
+  )
+  gotIt:SetState('bestScores')
+  gotIt.OnClick = function(object)
+    loveframes.SetState('none')
   end
 end
 
@@ -196,9 +332,18 @@ function updatePlayer(dt)
   end
 end
 
+function checkNewRecord()
+  local curScore = {score = game.score, hits = game.hits}
+  table.sort(bestScores, cmp)
+  if #bestScores == 0 or cmp(curScore, bestScores[#bestScores]) then
+    loveframes.SetState('addRecord')
+    addRecord()
+  end
+end
+
 function updateShooter(dt)
   gun.canShootTimer = gun.canShootTimer - dt
-  if gun.canShootTimer < 0 then
+  if gun.canShootTimer < 0 and gun.bullets > 0 then
     gun.canShoot = true
   end
   if love.keyboard.isDown(' ', 'rctrl', 'lctrl', 'ctrl') and gun.canShoot then
@@ -208,6 +353,13 @@ function updateShooter(dt)
     gun.sound:play()
     gun.canShoot = false
     gun.canShootTimer = gun.canShootTimerMax
+    if gun.bullets > 0 then
+      gun.bullets = gun.bullets - 1
+    end
+  end
+  if not game.isAlive and not game.checkRecord then
+    checkNewRecord()
+    game.checkRecord = true
   end
 end
 
@@ -277,6 +429,8 @@ function love.update(dt)
   if love.keyboard.isDown('escape') then
     loveframes.SetState('pauseMenu')
     showPauseMenu()
+    --loveframes.SetState('bestScores')
+    --showBestScores()
   end
 
   if loveframes.GetState() == 'none' then
@@ -319,8 +473,30 @@ end
 
 function drawScore()
   love.graphics.setColor(255, 255, 255)
-  love.graphics.print('Score: ' .. tostring(game.score), magic.scoreX, magic.scoreY)
-  love.graphics.print('Hits: ' .. tostring(game.hits), magic.scoreX, magic.scoreY + 20)
+  love.graphics.print('Bullets: ' .. tostring(gun.bullets), magic.scoreX, magic.scoreY)
+  love.graphics.print('Score: ' .. tostring(game.score), magic.scoreX, magic.scoreY + 20)
+  love.graphics.print('Hits: ' .. tostring(game.hits), magic.scoreX, magic.scoreY + 40)
+end
+
+function drawAddRecord()
+  love.graphics.print(
+    'Yay! You set a new record!',
+    love.graphics:getWidth() / 2 - 70,
+    love.graphics:getHeight() / 2 - 3 * magic.restartYMargin
+  )
+  love.graphics.print(
+    'Add your name to records:',
+    love.graphics:getWidth() / 2 - 70,
+    love.graphics:getHeight() / 2 - magic.restartYMargin
+  )
+end
+
+function drawBestScores()
+  love.graphics.print(
+    'Best scores:',
+    love.graphics:getWidth() / 4 - 40,
+    love.graphics:getHeight() / 4 - 3 * magic.restartYMargin
+  )
 end
 
 function love.draw()
@@ -329,6 +505,10 @@ function love.draw()
     drawBullets()
     drawEnemies()
     drawScore()
+  elseif loveframes.GetState() == 'addRecord' then
+    drawAddRecord()
+  elseif loveframes.GetState() == 'bestScores' then
+    drawBestScores()
   end
   loveframes.draw()
 end
