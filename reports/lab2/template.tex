@@ -1,0 +1,56 @@
+\documentclass[12pt]{article}
+
+\usepackage{fullpage}
+\usepackage{multicol, multirow}
+\usepackage{tabularx}
+\usepackage{standalone}
+\usepackage{listings}
+\usepackage{ulem}
+\usepackage{amsmath}
+\usepackage{pdfpages}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+
+\newcommand{\StudentName}{Ильвохин Дмитрий}
+\newcommand{\Group}{1O-106М}
+\newcommand{\CourseName}{Программирование игр}
+\newcommand{\LabNum}{1}
+\newcommand{\Subject}{Арканоид}
+\newcommand{\PrepName}{Аносова Н.\,П.}
+
+\begin{document}
+
+%\include{title} % title page
+
+\lstset
+{
+        language=Python,
+        basicstyle=\footnotesize,% basic font setting
+        extendedchars=\true
+}
+
+\begin{flushright}
+\Large{
+	\CourseName \\
+	Лабораторная работа №\,\LabNum \\
+	<<\Subject>> \\
+	%\StudentName, \Group \\
+}
+\end{flushright}
+
+\subsection*{Задание}
+Реализовать игру арканоид.
+
+При столкновеинии ракетки и мяча угол отскока должен меняться в зависимости от места,
+куда пришелся удар (удар по центу к изменению не приводит, чем ближе к краю,
+тем более пологий угол отскока).
+
+При ударе о ракетку во время достаточно быстрого ее движение угол отражения тоже должен меняться
+(вектор движения мяча при отражении складывается с вектором движения ракетки, 
+умноженным на некоторый коэффициент) для создания эффекта подкручивания мяча.
+
+\subsection*{Практическая часть}
+
+\subsection*{Выводы}
+\end{document}
+
