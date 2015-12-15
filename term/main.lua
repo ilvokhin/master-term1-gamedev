@@ -8,7 +8,7 @@ debug = true
 magic = {bulletMargin = 4, enemyMargin = 20, enemyRotate = math.pi,
   restartXMargin = 50, restartYMargin = 10,
   startPlayerX = 200, startPlayerY = 500,
-  scoreX = 400, scoreY = 10, startBullets = 10}
+  scoreX = 400, scoreY = 10, startBullets = 100}
 player = {img = nil, x = magic.startPlayerX, y = magic.startPlayerY, speed = 250}
 gun = {canShoot = true, canShootTimerMax = 0.2,
   canShootTimer = nil, bullet = nil, speed = 350, sound = nil, bullets = magic.startBullets}

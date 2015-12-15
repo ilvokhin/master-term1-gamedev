@@ -1,0 +1,73 @@
+\documentclass[12pt]{article}
+
+\usepackage{fullpage}
+\usepackage{multicol, multirow}
+\usepackage{tabularx}
+\usepackage{standalone}
+\usepackage{listings}
+\usepackage{ulem}
+\usepackage{amsmath}
+\usepackage{pdfpages}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+
+\newcommand{\StudentName}{Ильвохин Дмитрий}
+\newcommand{\Group}{1O-106М}
+\newcommand{\CourseName}{Программирование игр}
+\newcommand{\LabNum}{1}
+\newcommand{\Subject}{Воздушная битва}
+\newcommand{\PrepName}{Аносова Н.\,П.}
+
+\begin{document}
+
+\include{title} % title page
+
+\lstset
+{
+        language=Python,
+        basicstyle=\footnotesize,% basic font setting
+        extendedchars=\true
+}
+
+\subsection*{Задание}
+
+Разработать законченную 2D или 3D игру.
+
+\subsection*{Практическая часть}
+Для реализации игры был выбран движок LÖVE (love2d) --- свободно распространяемый игровой движок,
+предназначенный для написания компьютерных игр на языке Lua.
+
+В отличие от многих популярных движков LÖVE не представляет и себя конструктор игр.
+Для написания кода игры можно использовать любой текстовый редактор с подсветкой синтаксиса языка Lua.
+Также в нём нет редактора уровней, все изображения, уровни и персонажи прописываются в коде игры.~\cite{love}
+
+\begin{figure}[!htb]
+  \centering
+    \includegraphics[scale=0.5]{pics/start.png}
+   \caption{Стартовое меню}
+    \label{fig:start}
+\end{figure}
+
+\begin{figure}[!htb]
+  \centering
+    \includegraphics[scale=0.5]{pics/game.png}
+   \caption{Скриншот игры}
+    \label{fig:game}
+\end{figure}
+
+\begin{figure}[!htb]
+  \centering
+    \includegraphics[scale=0.5]{pics/records.png}
+   \caption{Таблица рекордов}
+    \label{fig:start}
+\end{figure}
+
+\subsection*{Выводы}
+
+\begin{thebibliography}{}
+\bibitem{love} https://ru.wikipedia.org/wiki/LÖVE
+\bibitem{love_official} https://love2d.org/wiki/Main\_Page
+\end{thebibliography}
+
+\end{document}
+
