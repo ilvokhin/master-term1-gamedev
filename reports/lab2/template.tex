@@ -50,7 +50,46 @@
 умноженным на некоторый коэффициент) для создания эффекта подкручивания мяча.
 
 \subsection*{Практическая часть}
+Как и в первой лабораторной работе Для реализации игры был выбран движок LÖVE (love2d).
+
+В игре игрок контролирует небольшую ракетку, которую можно передвигать горизонтально.
+Шарик, отскакивая от ракетки, может разрушить какой-то из еще не разрушенных кирпичиков.
+Если все кирпичики разрушены, считается, что игрок победил, если же шарик коснулся пола ---
+проиграл.
+
+Самое интересное место в игре --- изменение угла отскока в зависимости от места
+столкновения ракетки и шара. За эту часть логики отвечает следующий код:
+
+\begin{lstlisting}
+magicDeviationPower = 5
+magicReboundPower = 750
+function edgeDeviation(ball, racket)
+  local ballBody = ball:getBody()
+  local racketBody = racket:getBody()
+  local racketShape = racket:getShape()
+  local dx, dy = ballBody:getLinearVelocity()
+  local x_begin, _, x_end, _ = racketBody:getWorldPoints(racketShape:getPoints())
+  local racketCenter = (x_begin + x_end) / 2.
+  local dir = math.atan2(dy, dx + magicDeviationPower * (ballBody:getX() - racketCenter))
+  ballBody:setLinearVelocity
+  (
+    magicReboundPower * math.cos(dir), magicReboundPower * math.sin(dir)
+  )
+end
+\end{lstlisting}
+
+Дополнительно были реализованы возможности паузы и рестарта игры.
+
+\begin{figure}[!htb]
+  \centering
+    \includegraphics[scale=0.5]{pics/game.png}
+   \caption{Скриншот}
+    \label{fig:game}
+\end{figure}
 
 \subsection*{Выводы}
+При выполнении лабораторной чуть лучше познакомился с языком программирования Lua и игровым
+движком LÖVE. Кажется, Lua-код этой лабораторной работы выглядит немного лучше, чем код лабораторной работы
+№1, что не может не радовать.
 \end{document}
 
