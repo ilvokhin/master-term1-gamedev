@@ -9,7 +9,7 @@ magic = {bulletMargin = 4, enemyMargin = 20, enemyRotate = math.pi,
   restartXMargin = 50, restartYMargin = 10,
   startPlayerX = 200, startPlayerY = 500,
   scoreX = 400, scoreY = 10, startBullets = 100, enemyShootEps = 5,
-  startLife = 3}
+  startLife = 3, ammoBonus = 50, lifeBonus = 1}
 player = {img = nil, x = magic.startPlayerX, y = magic.startPlayerY, speed = 250,
   startImg = nil, lightImg = nil, hitImg = nil, isLight = false, sumLight = 0,
   life = magic.startLife}
@@ -65,6 +65,11 @@ islandImgFiles = {
   'assets/island3.png',
 }
 
+goodieImgFiles = {
+  'assets/ammo.png',
+  'assets/repair.png'
+}
+
 enemyBullet = 'assets/enemy_bullet.png'
 
 enemyRes = {makeTimerMax = 1., makeTimer = nil,
@@ -72,8 +77,11 @@ enemyRes = {makeTimerMax = 1., makeTimer = nil,
   lightMax = 0.5, bullet = nil, shootTimerMax = 0.5, bullets = {}}
 enemies = { }
 
-islandRes = { makeTimerMax = 1.5, makeTimer = nil, imgs = {}, speed = 100}
+islandRes = {makeTimerMax = 1.5, makeTimer = nil, imgs = {}, speed = 100}
 islands = { }
+
+goodieRes = {makeTimerMax = 10., makeTimer = nil, imgs = {}, speed = 100}
+goodies = { }
 
 game = {isAlive = true, score = 0, hits = 0, checkRecord = false, background = nil,
   quad = nil}
@@ -129,6 +137,11 @@ function love.load()
   islandRes.makeTimer = islandRes.makeTimerMax
   for k, img in pairs(islandImgFiles) do
     table.insert(islandRes.imgs, love.graphics.newImage(img))
+  end
+  --
+  goodieRes.makeTimer = goodieRes.makeTimerMax
+  for k, img in pairs(goodieImgFiles) do
+    table.insert(goodieRes.imgs, love.graphics.newImage(img))
   end
   --
   local score = nil
@@ -210,6 +223,7 @@ function restartGame()
   game.isAlive = true
   game.checkRecord = false
   gun.bullets = magic.startBullets
+  goodieRes.makeTimer = goodieRes.makeTimerMax
 end
 
 function showPauseMenu()
@@ -425,8 +439,26 @@ end
 function updateEnemyBullets(dt)
   for k, bullet in pairs(enemyRes.bullets) do
     bullet.y = bullet.y + gun.speed * dt
-    if bullet.y > love.graphics.getHeight() then
+    if bullet.y > love.graphics.getHeight() +  magic.enemyMargin then
       table.remove(enemyRes.bullets, k)
+    end
+  end
+end
+
+function updateGoodies(dt)
+  goodieRes.makeTimer = goodieRes.makeTimer - dt
+  if goodieRes.makeTimer < 0 then
+    goodieRes.makeTimer = goodieRes.makeTimerMax
+    local rnd = math.random(magic.enemyMargin, love.graphics.getWidth() - magic.enemyMargin)
+    local imgPos = math.random(1, #goodieRes.imgs)
+    local newGoodie = {img = goodieRes.imgs[imgPos], x = rnd, y = -3 * magic.enemyMargin,
+      imgNum = imgPos}
+    table.insert(goodies, newGoodie)
+  end
+  for k, goodie in pairs(goodies) do
+    goodie.y = goodie.y + goodieRes.speed * dt
+    if goodie.y > love.graphics.getHeight() + 3 * magic.enemyMargin then
+      table.remove(goodies, k)
     end
   end
 end
@@ -523,6 +555,20 @@ function updateCollisions(dt)
       table.remove(enemyRes.bullets, i)
     end
   end
+  for i, goodie in pairs(goodies) do
+    if collide(goodie, player) and game.isAlive then
+      if goodie.imgNum == 1 then
+        -- ammo
+        gun.bullets = gun.bullets + magic.ammoBonus
+      elseif goodie.imgNum == 2 then
+        -- repair
+        player.life = player.life + magic.lifeBonus
+        player.img = player.startImg
+      end
+      print('bonus')
+      table.remove(goodies, i)
+    end
+  end
 end
 
 function love.update(dt)
@@ -539,6 +585,7 @@ function love.update(dt)
     updateIslands(dt)
     updateEnemies(dt)
     updateCollisions(dt)
+    updateGoodies(dt)
     if not game.isAlive and love.keyboard.isDown('r') then
       restartGame()
     end
@@ -582,6 +629,12 @@ function drawIslands()
   end
 end
 
+function drawGoodies()
+  for k, goodie in pairs(goodies) do
+    love.graphics.draw(goodie.img, goodie.x, goodie.y, magic.enemyRotate)
+  end
+end
+
 function drawEnemies()
   for k, enemy in pairs(enemies) do
     love.graphics.draw(enemy.img, enemy.x, enemy.y, magic.enemyRotate)
@@ -621,6 +674,7 @@ function love.draw()
   if loveframes.GetState() == 'none' then
     drawBackground()
     drawIslands()
+    drawGoodies()
     drawPlayer()
     drawBullets()
     drawEnemyBullets()
