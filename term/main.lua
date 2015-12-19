@@ -59,7 +59,8 @@ hitImgFiles = {
 enemyRes = {makeTimerMax = 1., makeTimer = nil,
   startImgs = {}, lightImgs = {}, hitImgs = {}, speed = 200, hitMax = 1, lightMax = 0.5}
 enemies = { }
-game = {isAlive = true, score = 0, hits = 0, checkRecord = false}
+game = {isAlive = true, score = 0, hits = 0, checkRecord = false, background = nil,
+  quad = nil}
 
 bestScores = {}
 
@@ -86,6 +87,12 @@ function love.load()
   gun.canShootTimer = gun.canShootTimerMax
   gun.bullet = love.graphics.newImage('assets/bullet.png')
   gun.sound = love.audio.newSource('assets/sounds/gun-sound.wav', 'static')
+  --
+  game.background = love.graphics.newImage('assets/water.png')
+  game.background:setWrap('repeat', 'repeat')
+  game.quad = love.graphics.newQuad(
+    0, 0, love.graphics.getWidth(), love.graphics.getHeight(),
+    game.background:getWidth(), game.background:getHeight())
   --
   enemyRes.makeTimer = enemyRes.makeTimerMax
   for k, img in pairs(startImgFiles) do
@@ -447,6 +454,10 @@ function love.update(dt)
   loveframes.update(dt)
 end
 
+function drawBackground()
+  love.graphics.draw(game.background, game.quad, 0, 0, 0, 1,1)
+end
+
 function drawPlayer()
   if game.isAlive then
     love.graphics.draw(player.img, player.x, player.y)
@@ -501,6 +512,7 @@ end
 
 function love.draw()
   if loveframes.GetState() == 'none' then
+    drawBackground()
     drawPlayer()
     drawBullets()
     drawEnemies()
