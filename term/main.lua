@@ -565,7 +565,6 @@ function updateCollisions(dt)
         player.life = player.life + magic.lifeBonus
         player.img = player.startImg
       end
-      print('bonus')
       table.remove(goodies, i)
     end
   end
