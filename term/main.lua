@@ -56,9 +56,19 @@ hitImgFiles = {
   'assets/images/aircraft_3e_destroyed.png'
 }
 
+islandImgFiles = {
+  'assets/island1.png',
+  'assets/island2.png',
+  'assets/island3.png',
+}
+
 enemyRes = {makeTimerMax = 1., makeTimer = nil,
   startImgs = {}, lightImgs = {}, hitImgs = {}, speed = 200, hitMax = 1, lightMax = 0.5}
 enemies = { }
+
+islandRes = { makeTimerMax = 1.5, makeTimer = nil, imgs = {}, speed = 100}
+islands = { }
+
 game = {isAlive = true, score = 0, hits = 0, checkRecord = false, background = nil,
   quad = nil}
 
@@ -103,6 +113,11 @@ function love.load()
   end
   for k, img in pairs(hitImgFiles) do
     table.insert(enemyRes.hitImgs, love.graphics.newImage(img))
+  end
+  --
+  islandRes.makeTimer = islandRes.makeTimerMax
+  for k, img in pairs(islandImgFiles) do
+    table.insert(islandRes.imgs, love.graphics.newImage(img))
   end
   --
   local score = nil
@@ -169,6 +184,7 @@ end
 function restartGame()
   bullets = { }
   enemies = { }
+  islands = { }
   gun.canShoot = true
   gun.canShootTimer = gun.canShootTimerMax
   player.x = magic.startPlayerX
@@ -379,6 +395,24 @@ function updateBullets(dt)
   end
 end
 
+function updateIslands(dt)
+  islandRes.makeTimer = islandRes.makeTimer - dt
+  if islandRes.makeTimer < 0 then
+    islandRes.makeTimer = islandRes.makeTimerMax
+    local rnd = math.random(magic.enemyMargin, love.graphics.getWidth() - magic.enemyMargin)
+    local imgPos = math.random(1, #islandRes.imgs)
+    local newIsland = {img = islandRes.imgs[imgPos], x = rnd, y = -3 * magic.enemyMargin,
+      rotate = math.rad(math.random(0, 360))}
+    table.insert(islands, newIsland)
+  end
+  for k, island in pairs(islands) do
+    island.y = island.y + islandRes.speed * dt
+    if island.y > love.graphics.getHeight() + 3 * magic.enemyMargin then
+      table.remove(islands, k)
+    end
+  end
+end
+
 function updateEnemies(dt)
   enemyRes.makeTimer = enemyRes.makeTimer - dt
   if enemyRes.makeTimer < 0 then
@@ -444,6 +478,7 @@ function love.update(dt)
     updatePlayer(dt)
     updateShooter(dt)
     updateBullets(dt)
+    updateIslands(dt)
     updateEnemies(dt)
     updateCollisions(dt)
     if not game.isAlive and love.keyboard.isDown('r') then
@@ -455,7 +490,7 @@ function love.update(dt)
 end
 
 function drawBackground()
-  love.graphics.draw(game.background, game.quad, 0, 0, 0, 1,1)
+  love.graphics.draw(game.background, game.quad, 0, 0, 0, 1, 1)
 end
 
 function drawPlayer()
@@ -473,6 +508,12 @@ end
 function drawBullets()
   for k, bullet in pairs(bullets) do
     love.graphics.draw(bullet.img, bullet.x, bullet.y)
+  end
+end
+
+function drawIslands()
+  for k, island in pairs(islands) do
+    love.graphics.draw(island.img, island.x, island.y, island.rotate)
   end
 end
 
@@ -513,6 +554,7 @@ end
 function love.draw()
   if loveframes.GetState() == 'none' then
     drawBackground()
+    drawIslands()
     drawPlayer()
     drawBullets()
     drawEnemies()
