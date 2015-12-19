@@ -8,8 +8,11 @@ debug = true
 magic = {bulletMargin = 4, enemyMargin = 20, enemyRotate = math.pi,
   restartXMargin = 50, restartYMargin = 10,
   startPlayerX = 200, startPlayerY = 500,
-  scoreX = 400, scoreY = 10, startBullets = 100}
-player = {img = nil, x = magic.startPlayerX, y = magic.startPlayerY, speed = 250}
+  scoreX = 400, scoreY = 10, startBullets = 100, enemyShootEps = 5,
+  startLife = 3}
+player = {img = nil, x = magic.startPlayerX, y = magic.startPlayerY, speed = 250,
+  startImg = nil, lightImg = nil, hitImg = nil, isLight = false, sumLight = 0,
+  life = magic.startLife}
 gun = {canShoot = true, canShootTimerMax = 0.2,
   canShootTimer = nil, bullet = nil, speed = 350, sound = nil, bullets = magic.startBullets}
 bullets = { }
@@ -62,8 +65,11 @@ islandImgFiles = {
   'assets/island3.png',
 }
 
+enemyBullet = 'assets/enemy_bullet.png'
+
 enemyRes = {makeTimerMax = 1., makeTimer = nil,
-  startImgs = {}, lightImgs = {}, hitImgs = {}, speed = 200, hitMax = 1, lightMax = 0.5}
+  startImgs = {}, lightImgs = {}, hitImgs = {}, speed = 200, hitMax = 1,
+  lightMax = 0.5, bullet = nil, shootTimerMax = 0.5, bullets = {}}
 enemies = { }
 
 islandRes = { makeTimerMax = 1.5, makeTimer = nil, imgs = {}, speed = 100}
@@ -92,7 +98,10 @@ end
 
 function love.load()
   --
-  player.img = love.graphics.newImage('assets/images/aircraft_1.png')
+  player.startImg = love.graphics.newImage('assets/images/aircraft_1.png')
+  player.lightImg = love.graphics.newImage('assets/images/aircraft_1_hit.png')
+  player.hitImg = love.graphics.newImage('assets/images/aircraft_1_destroyed.png')
+  player.img = player.startImg
   --
   gun.canShootTimer = gun.canShootTimerMax
   gun.bullet = love.graphics.newImage('assets/bullet.png')
@@ -114,6 +123,8 @@ function love.load()
   for k, img in pairs(hitImgFiles) do
     table.insert(enemyRes.hitImgs, love.graphics.newImage(img))
   end
+  --
+  enemyRes.bullet = love.graphics.newImage(enemyBullet)
   --
   islandRes.makeTimer = islandRes.makeTimerMax
   for k, img in pairs(islandImgFiles) do
@@ -185,10 +196,15 @@ function restartGame()
   bullets = { }
   enemies = { }
   islands = { }
+  enemyRes.bullets = { }
   gun.canShoot = true
   gun.canShootTimer = gun.canShootTimerMax
   player.x = magic.startPlayerX
   player.y = magic.startPlayerY
+  player.isLight = false
+  player.sumLight = 0
+  player.img = player.startImg
+  player.life = magic.startLife
   game.score = 0
   game.hits = 0
   game.isAlive = true
@@ -336,6 +352,17 @@ function showBestScores()
 end
 
 function updatePlayer(dt)
+  if player.life == 0 then
+    game.isAlive = false
+  end
+  if player.isLight then
+    player.sumLight = player.sumLight + dt
+    if player.sumLight > enemyRes.lightMax then
+      player.sumLight = 0
+      player.isLight = false
+      player.img = player.hitImg
+    end
+  end
   if love.keyboard.isDown('left', 'a') then
     if player.x > 0 then
       player.x = player.x - player.speed * dt
@@ -395,6 +422,15 @@ function updateBullets(dt)
   end
 end
 
+function updateEnemyBullets(dt)
+  for k, bullet in pairs(enemyRes.bullets) do
+    bullet.y = bullet.y + gun.speed * dt
+    if bullet.y > love.graphics.getHeight() then
+      table.remove(enemyRes.bullets, k)
+    end
+  end
+end
+
 function updateIslands(dt)
   islandRes.makeTimer = islandRes.makeTimer - dt
   if islandRes.makeTimer < 0 then
@@ -420,11 +456,21 @@ function updateEnemies(dt)
     local rnd = math.random(magic.enemyMargin, love.graphics.getWidth() - magic.enemyMargin)
     local imgPos = math.random(1, #enemyRes.startImgs - 1)
     local newEnemy = {img = enemyRes.startImgs[imgPos], x = rnd, y = -magic.enemyMargin,
-      hit = 0, imgNum = imgPos, isLight = false, sumLight = 0}
+      hit = 0, imgNum = imgPos, isLight = false, sumLight = 0, shootTimer = enemyRes.shootTimerMax}
     table.insert(enemies, newEnemy)
   end
   for k, enemy in pairs(enemies) do
     enemy.y = enemy.y + enemyRes.speed * dt
+    enemy.shootTimer = enemy.shootTimer - dt
+    local enemyX = enemy.x - enemy.img:getWidth() / 2
+    local playerX = player.x + player.img:getWidth() / 2
+    -- shot only if enemy can hit player
+    if enemy.shootTimer < 0 and math.abs(enemyX - playerX) < magic.enemyShootEps then
+      enemy.shootTimer = enemyRes.shootTimerMax
+      local newEnemyBullet = {x = enemy.x - enemy.img:getWidth() / 2 + 16, y = enemy.y,
+        img = enemyRes.bullet}
+      table.insert(enemyRes.bullets, newEnemyBullet)
+    end
     if enemy.isLight then
       enemy.sumLight = enemy.sumLight + dt
       if enemy.sumLight > enemyRes.lightMax then
@@ -450,6 +496,13 @@ function hitEnemy(enemy, dt)
   enemy.sumLight = dt
 end
 
+function hitPlayer(dt)
+  player.isLight = true
+  player.life = player.life - 1
+  player.img = player.lightImg
+  player.symLight = dt
+end
+
 function updateCollisions(dt)
   for i, enemy in pairs(enemies) do
     for j, bullet in pairs(bullets) do
@@ -464,20 +517,25 @@ function updateCollisions(dt)
       game.isAlive = false
     end
   end
+  for i, bullet in pairs(enemyRes.bullets) do
+    if collide(bullet, player) and game.isAlive then
+      hitPlayer(dt)
+      table.remove(enemyRes.bullets, i)
+    end
+  end
 end
 
 function love.update(dt)
   if love.keyboard.isDown('escape') then
     loveframes.SetState('pauseMenu')
     showPauseMenu()
-    --loveframes.SetState('bestScores')
-    --showBestScores()
   end
 
   if loveframes.GetState() == 'none' then
     updatePlayer(dt)
     updateShooter(dt)
     updateBullets(dt)
+    updateEnemyBullets(dt)
     updateIslands(dt)
     updateEnemies(dt)
     updateCollisions(dt)
@@ -511,6 +569,13 @@ function drawBullets()
   end
 end
 
+function drawEnemyBullets()
+  for k, bullet in pairs(enemyRes.bullets) do
+    -- rotate enemy bullet too, to use a ready-made function for collision
+    love.graphics.draw(enemyRes.bullet, bullet.x, bullet.y, magic.enemyRotate)
+  end
+end
+
 function drawIslands()
   for k, island in pairs(islands) do
     love.graphics.draw(island.img, island.x, island.y, island.rotate)
@@ -526,8 +591,9 @@ end
 function drawScore()
   love.graphics.setColor(255, 255, 255)
   love.graphics.print('Bullets: ' .. tostring(gun.bullets), magic.scoreX, magic.scoreY)
-  love.graphics.print('Score: ' .. tostring(game.score), magic.scoreX, magic.scoreY + 20)
-  love.graphics.print('Hits: ' .. tostring(game.hits), magic.scoreX, magic.scoreY + 40)
+  love.graphics.print('Lifes: ' .. tostring(player.life), magic.scoreX, magic.scoreY + 20)
+  love.graphics.print('Score: ' .. tostring(game.score), magic.scoreX, magic.scoreY + 40)
+  love.graphics.print('Hits: ' .. tostring(game.hits), magic.scoreX, magic.scoreY + 60)
 end
 
 function drawAddRecord()
@@ -557,6 +623,7 @@ function love.draw()
     drawIslands()
     drawPlayer()
     drawBullets()
+    drawEnemyBullets()
     drawEnemies()
     drawScore()
   elseif loveframes.GetState() == 'addRecord' then
